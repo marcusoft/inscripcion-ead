@@ -1,96 +1,336 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inscripción EaD - UNaM</title>
+  <!-- Librería robusta con soporte para PDF417 y cámara móvil -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+  <style>
+    :root {
+      --unam-blue: #0b3b60;
+      --unam-dark: #07253d;
+      --unam-accent: #0077b6;
+      --bg: #f4f7f9;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --border: #cbd5e1;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      margin: 0;
+      padding: 16px 10px;
+      background-color: var(--bg);
+      color: var(--text);
+    }
+
+    .container {
+      max-width: 540px;
+      margin: 0 auto;
+    }
+
+    /* Cabecera */
+    .header-card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 18px;
+      text-align: center;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+      margin-bottom: 14px;
+      border-top: 4px solid var(--unam-blue);
+    }
+
+    .logo-unam {
+      max-height: 60px;
+      margin-bottom: 8px;
+      display: inline-block;
+    }
+
+    .header-card h1 {
+      margin: 0;
+      font-size: 18px;
+      color: var(--unam-blue);
+    }
+
+    .header-card p {
+      margin: 4px 0 0;
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Tarjetas */
+    .card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 18px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+      margin-bottom: 14px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--unam-dark);
+      margin: 0 0 12px 0;
+    }
+
+    /* Contenedor del escáner */
+    #reader {
+      width: 100%;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 10px;
+      border: 1px solid var(--border);
+      display: none;
+    }
+
+    .row { display: flex; gap: 10px; }
+    .col { flex: 1; }
+    .field { margin-bottom: 12px; }
+
+    label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .badge-auto {
+      font-size: 10px;
+      background: #e0f2fe;
+      color: #0369a1;
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--unam-accent);
+      box-shadow: 0 0 0 3px rgba(0, 119, 182, 0.15);
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid #e2e8f0;
+      margin: 16px 0;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 6px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-cam {
+      background: var(--unam-blue);
+      color: #fff;
+    }
+
+    .btn-submit {
+      background: #16a34a;
+      color: #fff;
+      margin-top: 6px;
+    }
+
+    .btn:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+    }
+
+    #statusMessage {
+      display: none;
+      margin-top: 12px;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Cabecera con Logo -->
+  <header class="header-card">
+    <img 
+      src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTHGEFtB0WIG5gJZQ3-5pYymvong3uW0fcJS3aCeD19&s=10" 
+      alt="Logo UNaM" 
+      class="logo-unam"
+    >
+    <h1>Universidad Nacional de Misiones</h1>
+    <p>Secretaría General de Educación a Distancia</p>
+  </header>
+
+  <!-- Módulo de Escaneo -->
+  <div class="card">
+    <div class="section-title">📷 Escaneo de DNI Argentino</div>
+    <div id="reader"></div>
+    <button type="button" class="btn btn-cam" id="btnToggleScan">Activar Cámara</button>
+  </div>
+
+  <!-- Formulario -->
+  <form id="formInscripcion" class="card">
+    <div class="section-title">📋 Datos de Inscripción</div>
+
+    <div class="row">
+      <div class="col field">
+        <label>DNI <span class="badge-auto">Auto</span></label>
+        <input type="text" id="dni" placeholder="Ej: 35123456" required>
+      </div>
+      <div class="col field">
+        <label>Sexo <span class="badge-auto">Auto</span></label>
+        <input type="text" id="sexo" placeholder="M / F">
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col field">
+        <label>Apellidos <span class="badge-auto">Auto</span></label>
+        <input type="text" id="apellido" placeholder="Gómez" required>
+      </div>
+      <div class="col field">
+        <label>Nombres <span class="badge-auto">Auto</span></label>
+        <input type="text" id="nombres" placeholder="Juan Carlos" required>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Fecha de Nacimiento <span class="badge-auto">Auto</span></label>
+      <input type="text" id="fechaNac" placeholder="DD/MM/AAAA">
+    </div>
+
+    <hr>
+
+    <div class="field">
+      <label>Correo Electrónico *</label>
+      <input type="email" id="email" placeholder="usuario@correo.com" required>
+    </div>
+
+    <div class="field">
+      <label>Teléfono / WhatsApp *</label>
+      <input type="tel" id="telefono" placeholder="Ej: 3755 123456" required>
+    </div>
+
+    <div class="field">
+      <label>Curso / Trayecto *</label>
+      <select id="curso" required>
+        <option value="" disabled selected>Seleccione un curso...</option>
+        <option value="Moodle para Docentes">Entornos Virtuales: Moodle para Docentes</option>
+        <option value="Diseño de Materiales Didácticos">Diseño de Materiales Didácticos Digitales</option>
+        <option value="Tutoría y Moderación en Línea">Tutoría y Moderación en Línea</option>
+        <option value="Herramientas Web para el Aula">Herramientas Web y Colaborativas</option>
+      </select>
+    </div>
+
+    <input type="hidden" id="tramite">
+
+    <button type="submit" class="btn btn-submit" id="btnSubmit">Confirmar Inscripción</button>
+    <div id="statusMessage"></div>
+  </form>
+</div>
+
 <script>
+  // Pega aquí la URL de tu WebApp de Apps Script (terminada en /exec)
   const SCRIPT_URL = "TU_URL_DE_APPS_SCRIPT_AQUI";
 
-  let codeReader = null;
+  let html5QrCode = null;
   let isScanning = false;
 
-  const btnToggleScanner = document.getElementById('btnToggleScanner');
-  const scannerContainer = document.getElementById('scannerContainer');
-  const videoElem = document.getElementById('videoPreview');
+  const btnToggleScan = document.getElementById('btnToggleScan');
+  const readerDiv = document.getElementById('reader');
   const form = document.getElementById('formInscripcion');
   const btnSubmit = document.getElementById('btnSubmit');
   const statusMessage = document.getElementById('statusMessage');
 
-  // Asegurar atributos críticos para navegadores móviles
-  videoElem.setAttribute('autoplay', '');
-  videoElem.setAttribute('muted', '');
-  videoElem.setAttribute('playsinline', '');
-
-  btnToggleScanner.addEventListener('click', () => {
+  btnToggleScan.addEventListener('click', () => {
     if (isScanning) {
-      detenerCamara();
+      detenerEscaner();
     } else {
-      iniciarCamara();
+      iniciarEscaner();
     }
   });
 
-  async function iniciarCamara() {
-    // 1. Verificación de contexto seguro (HTTPS o localhost)
-    if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-      mostrarNotificacion(
-        "Error de seguridad: La cámara exige HTTPS o localhost. Si abriste el archivo con 'file://', el navegador la bloquea.",
-        "danger"
-      );
-      return;
-    }
-
-    if (!codeReader) {
-      codeReader = new ZXing.BrowserPDF417Reader();
-    }
-
+  async function iniciarEscaner() {
     try {
-      scannerContainer.style.display = "block";
-      btnToggleScanner.innerText = "Detener Cámara";
-      btnToggleScanner.style.background = "#64748b";
+      readerDiv.style.display = "block";
+      btnToggleScan.innerText = "Detener Cámara";
+      btnToggleScan.style.background = "#64748b";
+
+      if (!html5QrCode) {
+        // Habilitar formatos, incluyendo PDF417 del DNI
+        html5QrCode = new Html5Qrcode("reader", {
+          formatsToSupport: [
+            Html5QrcodeSupportedFormats.PDF_417,
+            Html5QrcodeSupportedFormats.QR_CODE
+          ],
+          verbose: false
+        });
+      }
+
       isScanning = true;
 
-      // Restricción estándar: pide la cámara trasera directamente
-      const constraints = {
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        }
+      // Configuración de escaneo y cámara trasera
+      const config = {
+        fps: 15,
+        qrbox: { width: 300, height: 120 },
+        aspectRatio: 1.777
       };
 
-      // Decodificación continua desde el stream
-      await codeReader.decodeFromConstraints(constraints, 'videoPreview', (result, err) => {
-        if (result) {
-          procesarTramaDNI(result.getText());
-          detenerCamara();
-        }
-      });
+      await html5QrCode.start(
+        { facingMode: "environment" },
+        config,
+        (decodedText) => {
+          procesarTramaDNI(decodedText);
+          detenerEscaner();
+        },
+        () => { /* Ignorar errores cuadro a cuadro mientras busca */ }
+      );
 
-    } catch (e) {
-      console.error(e);
-      detenerCamara();
-      let msg = "No se pudo iniciar la cámara: " + e.message;
-      if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
-        msg = "Permiso de cámara denegado en el navegador. Habilitá los permisos para este sitio.";
-      } else if (e.name === 'NotFoundError' || e.name === 'DevicesNotFoundError') {
-        msg = "No se encontró ninguna cámara disponible en el dispositivo.";
-      }
-      mostrarNotificacion(msg, "danger");
+    } catch (err) {
+      console.error(err);
+      detenerEscaner();
+      mostrarNotificacion("Error al encender cámara: " + err, "danger");
     }
   }
 
-  function detenerCamara() {
-    if (codeReader) {
-      codeReader.reset();
+  async function detenerEscaner() {
+    if (html5QrCode && isScanning) {
+      try {
+        await html5QrCode.stop();
+      } catch (e) {
+        console.error(e);
+      }
     }
-    // Detener pistas activas si quedan abiertas
-    if (videoElem.srcObject) {
-      const stream = videoElem.srcObject;
-      const tracks = stream.getTracks();
-      tracks.forEach(track => track.stop());
-      videoElem.srcObject = null;
-    }
-    scannerContainer.style.display = "none";
-    btnToggleScanner.innerText = "Activar Cámara";
-    btnToggleScanner.style.background = "var(--unam-blue)";
+    readerDiv.style.display = "none";
+    btnToggleScan.innerText = "Activar Cámara";
+    btnToggleScan.style.background = "var(--unam-blue)";
     isScanning = false;
   }
 
+  // Parsear la trama del código de barras PDF417
   function procesarTramaDNI(rawText) {
     const campos = rawText.split('@');
     if (campos.length >= 7) {
@@ -101,18 +341,18 @@
       document.getElementById('dni').value = (campos[4] || '').trim();
       document.getElementById('fechaNac').value = (campos[6] || '').trim();
 
-      mostrarNotificacion("¡DNI leído con éxito! Completá correo y teléfono.", "success");
+      mostrarNotificacion("¡DNI escaneado con éxito! Completa los campos restantes.", "success");
       document.getElementById('email').focus();
     } else {
-      mostrarNotificacion("Código detectado con formato no estándar: " + rawText, "danger");
+      mostrarNotificacion("Código detectado pero formato no reconocido: " + rawText, "danger");
     }
   }
 
-  // Envío al Apps Script
+  // Enviar a Google Sheets
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     btnSubmit.disabled = true;
-    mostrarNotificacion("Guardando registro...", "info");
+    mostrarNotificacion("Registrando inscripción...", "info");
 
     const payload = {
       dni: document.getElementById('dni').value.trim(),
@@ -134,7 +374,7 @@
         body: JSON.stringify(payload)
       });
 
-      mostrarNotificacion("¡Inscripción registrada con éxito en la planilla!", "success");
+      mostrarNotificacion("¡Inscripción registrada exitosamente!", "success");
       form.reset();
 
       setTimeout(() => {
@@ -143,7 +383,7 @@
       }, 4000);
 
     } catch (err) {
-      mostrarNotificacion("Error al registrar: " + err.toString(), "danger");
+      mostrarNotificacion("Error al enviar: " + err.toString(), "danger");
       btnSubmit.disabled = false;
     }
   });
@@ -153,17 +393,20 @@
     statusMessage.innerText = texto;
 
     if (tipo === "success") {
-      statusMessage.style.backgroundColor = "var(--success-bg)";
-      statusMessage.style.color = "var(--success)";
+      statusMessage.style.backgroundColor = "#dcfce7";
+      statusMessage.style.color = "#15803d";
       statusMessage.style.border = "1px solid #86efac";
     } else if (tipo === "danger") {
-      statusMessage.style.backgroundColor = "var(--danger-bg)";
-      statusMessage.style.color = "var(--danger)";
+      statusMessage.style.backgroundColor = "#fee2e2";
+      statusMessage.style.color = "#b91c1c";
       statusMessage.style.border = "1px solid #fca5a5";
     } else {
-      statusMessage.style.backgroundColor = "var(--unam-light)";
-      statusMessage.style.color = "var(--unam-blue)";
+      statusMessage.style.backgroundColor = "#e0f2fe";
+      statusMessage.style.color = "#0369a1";
       statusMessage.style.border = "1px solid #bfdbfe";
     }
   }
 </script>
+
+</body>
+</html>
