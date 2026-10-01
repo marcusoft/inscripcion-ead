@@ -1,0 +1,169 @@
+<script>
+  const SCRIPT_URL = "TU_URL_DE_APPS_SCRIPT_AQUI";
+
+  let codeReader = null;
+  let isScanning = false;
+
+  const btnToggleScanner = document.getElementById('btnToggleScanner');
+  const scannerContainer = document.getElementById('scannerContainer');
+  const videoElem = document.getElementById('videoPreview');
+  const form = document.getElementById('formInscripcion');
+  const btnSubmit = document.getElementById('btnSubmit');
+  const statusMessage = document.getElementById('statusMessage');
+
+  // Asegurar atributos críticos para navegadores móviles
+  videoElem.setAttribute('autoplay', '');
+  videoElem.setAttribute('muted', '');
+  videoElem.setAttribute('playsinline', '');
+
+  btnToggleScanner.addEventListener('click', () => {
+    if (isScanning) {
+      detenerCamara();
+    } else {
+      iniciarCamara();
+    }
+  });
+
+  async function iniciarCamara() {
+    // 1. Verificación de contexto seguro (HTTPS o localhost)
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+      mostrarNotificacion(
+        "Error de seguridad: La cámara exige HTTPS o localhost. Si abriste el archivo con 'file://', el navegador la bloquea.",
+        "danger"
+      );
+      return;
+    }
+
+    if (!codeReader) {
+      codeReader = new ZXing.BrowserPDF417Reader();
+    }
+
+    try {
+      scannerContainer.style.display = "block";
+      btnToggleScanner.innerText = "Detener Cámara";
+      btnToggleScanner.style.background = "#64748b";
+      isScanning = true;
+
+      // Restricción estándar: pide la cámara trasera directamente
+      const constraints = {
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      };
+
+      // Decodificación continua desde el stream
+      await codeReader.decodeFromConstraints(constraints, 'videoPreview', (result, err) => {
+        if (result) {
+          procesarTramaDNI(result.getText());
+          detenerCamara();
+        }
+      });
+
+    } catch (e) {
+      console.error(e);
+      detenerCamara();
+      let msg = "No se pudo iniciar la cámara: " + e.message;
+      if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+        msg = "Permiso de cámara denegado en el navegador. Habilitá los permisos para este sitio.";
+      } else if (e.name === 'NotFoundError' || e.name === 'DevicesNotFoundError') {
+        msg = "No se encontró ninguna cámara disponible en el dispositivo.";
+      }
+      mostrarNotificacion(msg, "danger");
+    }
+  }
+
+  function detenerCamara() {
+    if (codeReader) {
+      codeReader.reset();
+    }
+    // Detener pistas activas si quedan abiertas
+    if (videoElem.srcObject) {
+      const stream = videoElem.srcObject;
+      const tracks = stream.getTracks();
+      tracks.forEach(track => track.stop());
+      videoElem.srcObject = null;
+    }
+    scannerContainer.style.display = "none";
+    btnToggleScanner.innerText = "Activar Cámara";
+    btnToggleScanner.style.background = "var(--unam-blue)";
+    isScanning = false;
+  }
+
+  function procesarTramaDNI(rawText) {
+    const campos = rawText.split('@');
+    if (campos.length >= 7) {
+      document.getElementById('tramite').value = `${campos[0] || ''} - Ej. ${campos[5] || ''}`;
+      document.getElementById('apellido').value = (campos[1] || '').trim();
+      document.getElementById('nombres').value = (campos[2] || '').trim();
+      document.getElementById('sexo').value = (campos[3] || '').trim();
+      document.getElementById('dni').value = (campos[4] || '').trim();
+      document.getElementById('fechaNac').value = (campos[6] || '').trim();
+
+      mostrarNotificacion("¡DNI leído con éxito! Completá correo y teléfono.", "success");
+      document.getElementById('email').focus();
+    } else {
+      mostrarNotificacion("Código detectado con formato no estándar: " + rawText, "danger");
+    }
+  }
+
+  // Envío al Apps Script
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    btnSubmit.disabled = true;
+    mostrarNotificacion("Guardando registro...", "info");
+
+    const payload = {
+      dni: document.getElementById('dni').value.trim(),
+      apellido: document.getElementById('apellido').value.trim(),
+      nombres: document.getElementById('nombres').value.trim(),
+      sexo: document.getElementById('sexo').value.trim(),
+      fechaNacimiento: document.getElementById('fechaNac').value.trim(),
+      tramiteEjemplar: document.getElementById('tramite').value.trim(),
+      email: document.getElementById('email').value.trim(),
+      telefono: document.getElementById('telefono').value.trim(),
+      curso: document.getElementById('curso').value
+    };
+
+    try {
+      await fetch(SCRIPT_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      mostrarNotificacion("¡Inscripción registrada con éxito en la planilla!", "success");
+      form.reset();
+
+      setTimeout(() => {
+        statusMessage.style.display = "none";
+        btnSubmit.disabled = false;
+      }, 4000);
+
+    } catch (err) {
+      mostrarNotificacion("Error al registrar: " + err.toString(), "danger");
+      btnSubmit.disabled = false;
+    }
+  });
+
+  function mostrarNotificacion(texto, tipo) {
+    statusMessage.style.display = "block";
+    statusMessage.innerText = texto;
+
+    if (tipo === "success") {
+      statusMessage.style.backgroundColor = "var(--success-bg)";
+      statusMessage.style.color = "var(--success)";
+      statusMessage.style.border = "1px solid #86efac";
+    } else if (tipo === "danger") {
+      statusMessage.style.backgroundColor = "var(--danger-bg)";
+      statusMessage.style.color = "var(--danger)";
+      statusMessage.style.border = "1px solid #fca5a5";
+    } else {
+      statusMessage.style.backgroundColor = "var(--unam-light)";
+      statusMessage.style.color = "var(--unam-blue)";
+      statusMessage.style.border = "1px solid #bfdbfe";
+    }
+  }
+</script>
